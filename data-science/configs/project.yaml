@@ -1,0 +1,15 @@
+project_version: "0.1.0"
+dataset_id: "pkdd99-berka-sha256-75ab2f39"
+feature_pipeline_version: "1.0.0"
+label_horizon_months: 6
+minimum_history_months: 3
+splits:
+  train_end: "1995-12-31"
+  validation_start: "1996-01-31"
+  validation_end: "1996-12-31"
+  test_start: "1997-01-31"
+  test_end: "1997-12-31"
+  replay_start: "1998-01-31"
+threshold_policy: "validation_f1"
+random_seed: 42
+

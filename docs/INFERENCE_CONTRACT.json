@@ -1,0 +1,17 @@
+{
+  "contract_version": "1.0.0",
+  "input_format": "parquet",
+  "entity_key": "account_id",
+  "observation_key": "observation_date",
+  "required_features_reference": "docs/DATA_DICTIONARY.md",
+  "output_columns": {
+    "account_id": "integer",
+    "observation_date": "datetime64[ns]",
+    "score": "float in [0,1]",
+    "decision": "integer 0/1 at model threshold",
+    "model_version": "string",
+    "dataset_id": "string"
+  },
+  "errors": ["missing features", "invalid types", "duplicate entity-observation", "future observation", "model load failure"]
+}
+
