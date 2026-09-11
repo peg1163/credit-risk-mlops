@@ -39,7 +39,7 @@ jobs:
         run: python -m pip check
 
       - name: Compile Python source
-        run: python -m compileall -q data-science/src data-science/predict.py
+        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures
 
       - name: Validate inference script syntax
         run: bash -n mlops/scripts/run-inference.sh
@@ -64,3 +64,40 @@ jobs:
 
       - name: Verify expected entrypoint
         run: test "$(docker image inspect credit-risk-inference:ci --format '{{json .Config.Entrypoint}}')" = '["python","/app/data-science/predict.py"]'
+
+      - name: Create fixture directories
+        run: mkdir -p "$RUNNER_TEMP/credit-risk-fixture/model" "$RUNNER_TEMP/credit-risk-fixture/input" "$RUNNER_TEMP/credit-risk-fixture/output"
+
+      - name: Generate synthetic inference fixture
+        run: >-
+          docker run --rm
+          --user "$(id -u):$(id -g)"
+          --entrypoint python
+          --volume "$GITHUB_WORKSPACE/data-science/tests/fixtures:/fixtures-source:ro"
+          --volume "$RUNNER_TEMP/credit-risk-fixture:/fixtures"
+          credit-risk-inference:ci
+          /fixtures-source/create_inference_fixture.py
+          --model /fixtures/model/champion.joblib
+          --input /fixtures/input/input.parquet
+
+      - name: Run container inference
+        run: >-
+          MODEL_PATH="$RUNNER_TEMP/credit-risk-fixture/model/champion.joblib"
+          INPUT_DIR="$RUNNER_TEMP/credit-risk-fixture/input"
+          OUTPUT_DIR="$RUNNER_TEMP/credit-risk-fixture/output"
+          IMAGE_NAME="credit-risk-inference:ci"
+          ./mlops/scripts/run-inference.sh
+          input.parquet
+          predictions.parquet
+
+      - name: Validate inference output
+        run: >-
+          docker run --rm
+          --user "$(id -u):$(id -g)"
+          --entrypoint python
+          --volume "$GITHUB_WORKSPACE/data-science/tests/fixtures:/fixtures-source:ro"
+          --volume "$RUNNER_TEMP/credit-risk-fixture:/fixtures:ro"
+          credit-risk-inference:ci
+          /fixtures-source/validate_inference_output.py
+          --input /fixtures/output/predictions.parquet
+          --expected-rows 6
