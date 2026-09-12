@@ -23,7 +23,8 @@ def release(period: str) -> dict:
     frame=pd.read_parquet(dst)
     manifest={"dataset_id":config()["dataset_id"],"period":period,"rows":len(frame),"accounts":frame.account_id.nunique(),"sha256":sha256(dst),"released_at_utc":datetime.now(timezone.utc).isoformat(),"source_partition":str(src.relative_to(DATA)),"destination_partition":str(dst.relative_to(DATA))}
     write_json(MANIFESTS/f"batch-{period}.json",manifest)
-    s["released"].append(period); s["simulated_date"]=f"{period}-01"; write_json(STATE,s)
+    simulated_date = pd.Period(period, freq="M").end_time.normalize().date().isoformat()
+    s["released"].append(period); s["simulated_date"]=simulated_date; write_json(STATE,s)
     return manifest
 def reset():
     if INCOMING.exists(): shutil.rmtree(INCOMING)
