@@ -64,3 +64,15 @@ jobs:
 
       - name: Verify expected entrypoint
         run: test "$(docker image inspect credit-risk-inference:ci --format '{{json .Config.Entrypoint}}')" = '["python","/app/data-science/predict.py"]'
+
+      - name: Build replay image
+      - run: docker build --file mlops/docker/replay.Dockerfile --tag credit-risk-replay:ci .
+
+      - name: Verify replay non-root user
+        run: test "$(docker image inspect credit-risk-replay:ci --format '{{.Config.User}}')" = "appuser"
+
+      - name: Verify replay entrypoint
+        run: test "$(docker image inspect credit-risk-replay:ci --format '{{json .Config.Entrypoint}}')" = '["python","/app/data-science/replay.py"]'
+
+      - name: Verify replay initial status
+        run: docker run --rm credit-risk-replay:ci --status
