@@ -12,6 +12,7 @@ data-science/data/labels/
 data-science/data/predictions/
 data-science/data/manifests/
 data-science/data/replay_state.json
+data-science/data/replay_runtime/
 data-science/data/*.parquet
 data-science/artifacts/*.joblib
 data-science/artifacts/*.parquet
