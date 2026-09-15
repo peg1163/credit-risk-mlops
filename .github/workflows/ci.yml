@@ -39,10 +39,16 @@ jobs:
         run: python -m pip check
 
       - name: Compile Python source
-        run: python -m compileall -q data-science/src data-science/predict.py
+        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures
 
       - name: Validate inference script syntax
         run: bash -n mlops/scripts/run-inference.sh
+
+      - name: Validate replay script syntax
+        run: bash -n mlops/scripts/run-replay.sh
+
+      - name: Validate container integration script syntax
+        run: bash -n mlops/scripts/test-inference-container.sh
 
   docker:
     name: Docker image
@@ -76,3 +82,6 @@ jobs:
 
       - name: Verify replay initial status
         run: docker run --rm credit-risk-replay:ci --status
+
+      - name: Run inference smoke test
+        run: ./mlops/scripts/test-inference-container.sh
