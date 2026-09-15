@@ -9,7 +9,7 @@ Educational ranking of active loan accounts by probability of first severe finan
 - Train: through 1995-12, 2,726 snapshots / 45 events.
 - Validation: 1996, 2,906 / 57.
 - Test OOT: 1997, 4,583 / 64.
-- Replay: 1998. Labels through 1998-06 can mature; later observations are censored.
+- Replay warm-up: 1997-10 through 1997-12. Production scoring: 1998. Labels through 1998-06 can mature; later observations are censored.
 - Model: standardized/imputed logistic regression, `C=0.5`, balanced class weights, seed 42.
 - Decision threshold: 0.75, selected by validation F1 only. This is a demonstration operating point, not a business-approved cutoff.
 
@@ -26,4 +26,3 @@ Test confusion matrix: TN 4,401; FP 118; FN 52; TP 12. Detailed monthly, amount-
 ## Limitations and risks
 
 The sample is small, old, from one Czech bank, and contains repeated snapshots per account. Overlapping six-month horizons make rows dependent; metrics are therefore descriptive and not confidence intervals. Balanced class weights produce poor probability calibration (top score decile mean 0.569 versus event rate 0.061). The model is useful for MLOps exercises, not probability-based decisions. Train-to-validation degradation suggests temporal shift/overfit. `district_id` can encode geography and requires fairness/governance review. The target is a proxy and cannot be compared with mortgage 90+ DPD.
-

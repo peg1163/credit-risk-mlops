@@ -9,7 +9,7 @@ splits:
   validation_end: "1996-12-31"
   test_start: "1997-01-31"
   test_end: "1997-12-31"
-  replay_start: "1998-01-31"
+  replay_start: "1997-10-31"
+  production_start: "1998-01-31"
 threshold_policy: "validation_f1"
 random_seed: 42
-
