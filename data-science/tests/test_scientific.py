@@ -19,3 +19,6 @@ def test_chronological_splits_do_not_overlap():
 def test_at_risk_population_has_no_prior_negative_event():
     d=data(); assert (d.event_date.isna() | (d.observation_date<d.event_date)).all()
 
+def test_replay_warmup_precedes_production():
+    splits = config()["splits"]
+    assert pd.Timestamp(splits["replay_start"]) < pd.Timestamp(splits["production_start"])

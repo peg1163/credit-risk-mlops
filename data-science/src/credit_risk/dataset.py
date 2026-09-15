@@ -66,7 +66,14 @@ def build_and_save() -> dict:
 
 def build_incoming_features() -> dict:
     out=build_dataset(DATA/"incoming"/"transactions",allow_archive=False)
-    latest=out.observation_date.max(); frame=out[out.observation_date.eq(latest)]
+    latest=out.observation_date.max()
+    production_start=pd.Timestamp(config()["splits"]["production_start"])
+    if latest < production_start:
+        raise ValueError(
+            f"Warm-up incomplete: latest period {latest.date()} is before production start "
+            f"{production_start.date()}"
+        )
+    frame=out[out.observation_date.eq(latest)]
     path=DATA/"features"/f"production-{latest:%Y-%m}.parquet"; path.parent.mkdir(parents=True,exist_ok=True)
     frame[["account_id","observation_date",*FEATURES]].to_parquet(path,index=False)
     return {"period":str(latest.date()),"rows":len(frame),"path":str(path)}

@@ -47,6 +47,9 @@ jobs:
       - name: Validate replay script syntax
         run: bash -n mlops/scripts/run-replay.sh
 
+      - name: Validate features script syntax
+        run: bash -n mlops/scripts/run-features.sh
+
       - name: Validate container integration script syntax
         run: bash -n mlops/scripts/test-inference-container.sh
 
@@ -82,6 +85,15 @@ jobs:
 
       - name: Verify replay initial status
         run: docker run --rm credit-risk-replay:ci --status
+
+      - name: Build features image
+        run: docker build --file mlops/docker/features.Dockerfile --tag credit-risk-features:ci .
+
+      - name: Verify features non-root user
+        run: test "$(docker image inspect credit-risk-features:ci --format '{{.Config.User}}')" = "appuser"
+
+      - name: Verify features entrypoint
+        run: test "$(docker image inspect credit-risk-features:ci --format '{{json .Config.Entrypoint}}')" = '["python","/app/data-science/build_features.py"]'
 
       - name: Run inference smoke test
         run: ./mlops/scripts/test-inference-container.sh

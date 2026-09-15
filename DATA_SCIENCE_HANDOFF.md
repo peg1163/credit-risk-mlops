@@ -11,7 +11,7 @@ Freddie Mac was the first choice. On 2026-09-08 its full/per-vintage data requir
 - Dataset ID: `pkdd99-berka-sha256-75ab2f39`.
 - Prepared loan-account history: 191,556 transactions, 682 accounts, 1993-01 to 1998-12, 72 monthly partitions, 5.3 MB Parquet archive.
 - Modeling dataset: 16,837 pre-event snapshots, 654 accounts; 13,321 mature labels and 204 positive rows.
-- Train through 1995-12; validate 1996; OOT test 1997; simulate production in 1998.
+- Train through 1995-12; validate 1996; OOT test 1997; warm up features with 1997-10 through 1997-12; simulate production from 1998-01.
 - Observation/inference/data-availability date is month-end. The label matures six month-ends later. Snapshots after the first event are excluded. July–December 1998 labels remain censored at source cutoff.
 - Multiple snapshots and overlapping horizons are intentionally retained for monthly scoring; do not interpret rows as independent. Entity-grouped sensitivity/bootstrap analysis is future scientific work.
 
@@ -27,7 +27,7 @@ Local MLflow experiment `credit-risk-baseline` records parameters, split metrics
 
 ## Replay contract
 
-Only `credit_risk.replay` reads `data/raw_archive`. It releases a single `period=YYYY-MM/data.parquet`, copies static reference data on first use, verifies SHA-256, creates a batch manifest, advances persistent state and rejects duplicates or backward releases. `--next`, `--release-month`, `--status` and `--reset` are supported. Production feature code reads only `data/incoming`.
+Only `credit_risk.replay` reads `data/raw_archive`. It releases a single `period=YYYY-MM/data.parquet`, copies static reference data on first use, verifies SHA-256, creates a batch manifest, advances persistent state and rejects duplicates or backward releases. `--next`, `--release-month`, `--status` and `--reset` are supported. October through December 1997 are warm-up context required for three-month features; scoring begins in January 1998. Production feature code reads only `data/incoming`.
 
 Suggested S3 mapping:
 
@@ -61,4 +61,3 @@ Configure dataset/bucket/prefix IDs, replay start, target horizon, history windo
 - Establish artifact retention, encryption, IAM separation and deletion policy.
 - Decide whether to preserve this proxy project or later replace data with a manually licensed Freddie Mac vintage and restore the original 90+ DPD target.
 - Choose business threshold/cost matrix only after defining false-positive/false-negative costs; 0.75 is a scientific demo threshold.
-
