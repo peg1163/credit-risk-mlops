@@ -10,7 +10,8 @@ This is educational software. It must not be used for lending decisions.
 - Monthly historical archive and deterministic replay implemented.
 - Six-month severe-distress target, leakage-safe features, chronological splits.
 - Logistic-regression champion trained; local MLflow experiment recorded.
-- Inference, evaluation and seven automated tests executed successfully.
+- Containerized replay, feature generation and inference components.
+- A local monthly pipeline that preserves warm-up and future-data isolation.
+- Inference, evaluation and automated scientific tests executed successfully.
 
 See [`DATA_SCIENCE_HANDOFF.md`](DATA_SCIENCE_HANDOFF.md) for the operational contract and [`data-science/README.md`](data-science/README.md) for commands.
-
