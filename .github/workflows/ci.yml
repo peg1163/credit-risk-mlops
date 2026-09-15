@@ -50,6 +50,9 @@ jobs:
       - name: Validate features script syntax
         run: bash -n mlops/scripts/run-features.sh
 
+      - name: Validate monthly pipeline script syntax
+        run: bash -n mlops/scripts/run-monthly-pipeline.sh
+
       - name: Validate container integration script syntax
         run: bash -n mlops/scripts/test-inference-container.sh
 
