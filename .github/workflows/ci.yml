@@ -53,6 +53,9 @@ jobs:
       - name: Validate monthly pipeline script syntax
         run: bash -n mlops/scripts/run-monthly-pipeline.sh
 
+      - name: Validate monthly integration script syntax
+        run: bash -n mlops/scripts/test-monthly-pipeline.sh
+
       - name: Validate container integration script syntax
         run: bash -n mlops/scripts/test-inference-container.sh
 
@@ -100,3 +103,6 @@ jobs:
 
       - name: Run inference smoke test
         run: ./mlops/scripts/test-inference-container.sh
+
+      - name: Run monthly pipeline integration test
+        run: ./mlops/scripts/test-monthly-pipeline.sh
