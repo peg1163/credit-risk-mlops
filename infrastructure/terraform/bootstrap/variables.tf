@@ -58,3 +58,25 @@ variable "github_branch" {
     error_message = "github_branch contiene caracteres no válidos."
   }
 }
+
+variable "github_owner_id" {
+  description = "ID inmutable del propietario del repositorio en GitHub."
+  type        = string
+  default     = "92898224"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_owner_id))
+    error_message = "github_owner_id debe contener únicamente dígitos."
+  }
+}
+
+variable "github_repository_id" {
+  description = "ID inmutable del repositorio en GitHub."
+  type        = string
+  default     = "1360977016"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id debe contener únicamente dígitos."
+  }
+}
