@@ -1,0 +1,26 @@
+name: AWS OIDC check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  identity-check:
+    name: Verify temporary AWS identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Configure temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: github-actions-oidc-check
+          mask-aws-account-id: true
+
+      - name: Verify authenticated identity without printing it
+        run: aws sts get-caller-identity >/dev/null && echo "OIDC authentication succeeded"
