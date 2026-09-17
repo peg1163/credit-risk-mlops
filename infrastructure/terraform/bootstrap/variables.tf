@@ -36,3 +36,25 @@ variable "environment" {
     error_message = "environment debe ser bootstrap, development, staging o production."
   }
 }
+
+variable "github_repository" {
+  description = "Repositorio autorizado para asumir el rol OIDC, con formato owner/repository."
+  type        = string
+  default     = "peg1163/credit-risk-mlops"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository debe tener el formato owner/repository."
+  }
+}
+
+variable "github_branch" {
+  description = "Única rama autorizada para asumir el rol OIDC inicial."
+  type        = string
+  default     = "main"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._/-]+$", var.github_branch))
+    error_message = "github_branch contiene caracteres no válidos."
+  }
+}
