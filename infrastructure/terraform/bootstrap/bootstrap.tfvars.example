@@ -1,0 +1,4 @@
+aws_region        = "us-east-1"
+allowed_account_id = "REPLACE_WITH_12_DIGIT_ACCOUNT_ID"
+project_name      = "credit-risk-mlops"
+environment       = "bootstrap"

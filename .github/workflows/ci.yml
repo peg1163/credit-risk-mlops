@@ -118,13 +118,20 @@ jobs:
         run: ./mlops/scripts/test-monthly-pipeline.sh
 
   terraform:
-    name: Terraform validation
+    name: Terraform validation (${{ matrix.stack }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          - lab-local
+          - bootstrap
+
     defaults:
       run:
-        working-directory: infrastructure/terraform/lab-local
+        working-directory: infrastructure/terraform/${{ matrix.stack }}
 
     steps:
       - name: Check out repository
@@ -144,5 +151,6 @@ jobs:
       - name: Validate Terraform configuration
         run: terraform validate -no-color
 
-      - name: Create Terraform plan
+      - name: Create local laboratory plan
+        if: matrix.stack == 'lab-local'
         run: terraform plan -var-file=lab.tfvars.example -input=false -lock=false -no-color
