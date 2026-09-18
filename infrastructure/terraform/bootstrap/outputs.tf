@@ -34,3 +34,14 @@ output "github_actions_terraform_plan_role_name" {
   description = "Nombre del rol OIDC utilizado para Terraform plan."
   value       = aws_iam_role.github_actions_terraform_plan.name
 }
+
+output "github_actions_terraform_apply_development_role_arn" {
+  description = "ARN del rol OIDC para Terraform apply aprobado en development."
+  value       = aws_iam_role.github_actions_terraform_apply_development.arn
+  sensitive   = true
+}
+
+output "github_actions_terraform_apply_development_role_name" {
+  description = "Nombre del rol OIDC para Terraform apply aprobado en development."
+  value       = aws_iam_role.github_actions_terraform_apply_development.name
+}

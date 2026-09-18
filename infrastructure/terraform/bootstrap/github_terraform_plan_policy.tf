@@ -84,6 +84,51 @@ data "aws_iam_policy_document" "github_actions_terraform_plan_permissions" {
       aws_iam_role.github_actions_terraform_plan.arn,
     ]
   }
+  statement {
+    sid    = "ReadDevelopmentState"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+    ]
+
+    resources = [
+      "${aws_s3_bucket.terraform_state.arn}/${local.development_state_key}",
+    ]
+  }
+
+  statement {
+    sid    = "ManageDevelopmentPlanLock"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+
+    resources = [
+      "${aws_s3_bucket.terraform_state.arn}/${local.development_state_key}.tflock",
+    ]
+  }
+
+  statement {
+    sid    = "ReadDevelopmentDataBucketConfiguration"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetBucket*",
+      "s3:GetEncryptionConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:GetObjectLockConfiguration",
+      "s3:GetReplicationConfiguration",
+      "s3:ListBucket",
+    ]
+
+    resources = [
+      local.development_bucket_arn_pattern,
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions_terraform_plan" {
