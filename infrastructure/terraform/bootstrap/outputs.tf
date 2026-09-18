@@ -23,3 +23,14 @@ output "github_actions_identity_check_role_name" {
   description = "Nombre del rol OIDC inicial, sin permisos sobre servicios AWS."
   value       = aws_iam_role.github_actions_identity_check.name
 }
+
+output "github_actions_terraform_plan_role_arn" {
+  description = "ARN del rol OIDC utilizado por GitHub Actions para Terraform plan."
+  value       = aws_iam_role.github_actions_terraform_plan.arn
+  sensitive   = true
+}
+
+output "github_actions_terraform_plan_role_name" {
+  description = "Nombre del rol OIDC utilizado para Terraform plan."
+  value       = aws_iam_role.github_actions_terraform_plan.name
+}

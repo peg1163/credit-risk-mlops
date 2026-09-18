@@ -42,3 +42,10 @@ resource "aws_iam_role" "github_actions_identity_check" {
   assume_role_policy   = data.aws_iam_policy_document.github_actions_assume_role.json
   max_session_duration = 3600
 }
+
+resource "aws_iam_role" "github_actions_terraform_plan" {
+  name                 = "${var.project_name}-github-actions-terraform-plan"
+  description          = "GitHub Actions OIDC role for read-only Terraform planning."
+  assume_role_policy   = data.aws_iam_policy_document.github_actions_assume_role.json
+  max_session_duration = 3600
+}
