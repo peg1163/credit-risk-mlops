@@ -13,7 +13,7 @@ data "aws_iam_policy_document" "github_actions_terraform_plan_permissions" {
   }
 
   statement {
-    sid    = "ListTerraformStateLocation"
+    sid    = "CheckAndListStateBucket"
     effect = "Allow"
 
     actions = [
@@ -23,16 +23,6 @@ data "aws_iam_policy_document" "github_actions_terraform_plan_permissions" {
     resources = [
       aws_s3_bucket.terraform_state.arn,
     ]
-
-    condition {
-      test     = "StringLike"
-      variable = "s3:prefix"
-
-      values = [
-        "bootstrap/terraform.tfstate",
-        "bootstrap/terraform.tfstate.tflock",
-      ]
-    }
   }
 
   statement {
