@@ -76,10 +76,10 @@ After that bootstrap update, create the development deployment workflow:
 - Root-backed local access remains accepted temporarily by the owner for the
   bootstrap, but migration to a dedicated IAM Identity Center identity remains
   a security task.
-- Because the repository is now private, confirm that the current GitHub plan
-  enforces the required reviewer and environment restrictions before enabling
-  the apply workflow. Do not treat a visible Environment as proof that its
-  protection rules are active.
+- The repository was verified as public on 2026-09-19, so its configured
+  Environment protection is available. If it is later changed to private,
+  confirm that the current GitHub plan still enforces required reviewers and
+  environment restrictions before enabling the apply workflow.
 
 ## Continue from another computer
 
@@ -119,7 +119,8 @@ on a local workstation or GitHub-hosted Actions runner.
 ## Definition of done for the current phase
 
 - Bootstrap permission changes produce no destructive actions and are applied.
-- The private-repository GitHub Environment protection behavior is verified.
+- GitHub Environment protection behavior is verified for the repository's
+  current visibility and plan.
 - Development `plan` and approved `apply` use different OIDC roles.
 - Apply consumes the exact saved plan rather than regenerating it.
 - The development S3 foundation is deployed from GitHub Actions.
