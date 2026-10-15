@@ -14,7 +14,15 @@ This is educational software. It must not be used for lending decisions.
 - A local monthly pipeline that preserves warm-up and future-data isolation.
 - End-to-end container integration tests in GitHub Actions.
 - Local Terraform foundations implemented and validated in CI.
-- AWS bootstrap in progress with cost guardrails configured before resources.
+- AWS bootstrap deployed with remote state, GitHub OIDC and separate plan/apply
+  roles.
+- Development S3 foundation defined; its approved GitHub deployment workflow is
+  the current implementation step.
 - Inference, evaluation and automated scientific tests executed successfully.
 
 See [`DATA_SCIENCE_HANDOFF.md`](DATA_SCIENCE_HANDOFF.md) for the operational contract, [`docs/MLOPS_PROGRESS.md`](docs/MLOPS_PROGRESS.md) for the exact implementation checkpoint, and [`data-science/README.md`](data-science/README.md) for scientific commands.
+
+The proposed cloud architecture, delivery phases, Mermaid diagrams, and review
+gates are documented in [`docs/TECHNICAL_DEVELOPMENT.md`](docs/TECHNICAL_DEVELOPMENT.md).
+Architecture decisions remain non-authoritative until reviewed in
+[`docs/adr/`](docs/adr/README.md).

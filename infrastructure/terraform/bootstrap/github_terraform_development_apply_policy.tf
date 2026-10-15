@@ -76,6 +76,20 @@ data "aws_iam_policy_document" "github_actions_terraform_apply_development_permi
       local.development_bucket_arn_pattern,
     ]
   }
+
+  statement {
+    sid    = "ConsumeDevelopmentSavedPlan"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+      "s3:DeleteObject",
+    ]
+
+    resources = [
+      "${aws_s3_bucket.terraform_state.arn}/plans/development/*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions_terraform_apply_development" {
