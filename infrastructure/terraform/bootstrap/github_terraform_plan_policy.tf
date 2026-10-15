@@ -84,6 +84,7 @@ data "aws_iam_policy_document" "github_actions_terraform_plan_permissions" {
       aws_iam_role.github_actions_terraform_plan.arn,
     ]
   }
+
   statement {
     sid    = "ReadDevelopmentState"
     effect = "Allow"
@@ -127,6 +128,19 @@ data "aws_iam_policy_document" "github_actions_terraform_plan_permissions" {
 
     resources = [
       local.development_bucket_arn_pattern,
+    ]
+  }
+
+  statement {
+    sid    = "WriteDevelopmentSavedPlan"
+    effect = "Allow"
+
+    actions = [
+      "s3:PutObject",
+    ]
+
+    resources = [
+      "${aws_s3_bucket.terraform_state.arn}/plans/development/*",
     ]
   }
 }

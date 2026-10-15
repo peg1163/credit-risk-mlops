@@ -1,0 +1,124 @@
+name: Terraform development deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: Create and apply the reviewed development plan
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-development-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  SAVED_PLAN_KEY: plans/development/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}.tfplan
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  plan:
+    name: Create development plan
+    if: inputs.confirm_apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: infrastructure/terraform/environments/dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Configure temporary plan credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-development-plan
+          mask-aws-account-id: true
+
+      - name: Set Terraform account guardrail
+        run: echo "TF_VAR_allowed_account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_ENV"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.9"
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check
+
+      - name: Initialize development backend
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="key=environments/dev/terraform.tfstate" -backend-config="region=${{ env.AWS_REGION }}" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+
+      - name: Validate Terraform configuration
+        run: terraform validate -no-color
+
+      - name: Create saved Terraform plan
+        run: terraform plan -input=false -no-color -lock-timeout=60s -out=development.tfplan
+
+      - name: Add readable plan to workflow summary
+        run: terraform show -no-color development.tfplan >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create plan checksum
+        run: sha256sum development.tfplan > development.tfplan.sha256
+
+      - name: Upload encrypted plan and checksum
+        run: aws s3 cp development.tfplan "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}" --sse AES256 && aws s3 cp development.tfplan.sha256 "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}.sha256" --sse AES256
+
+  apply:
+    name: Apply approved development plan
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: development
+
+    defaults:
+      run:
+        working-directory: infrastructure/terraform/environments/dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Configure temporary apply credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_APPLY_DEVELOPMENT_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-development-apply
+          mask-aws-account-id: true
+
+      - name: Set Terraform account guardrail
+        run: echo "TF_VAR_allowed_account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_ENV"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.9"
+
+      - name: Initialize development backend
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="key=environments/dev/terraform.tfstate" -backend-config="region=${{ env.AWS_REGION }}" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+
+      - name: Download approved plan and checksum
+        run: aws s3 cp "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}" development.tfplan && aws s3 cp "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}.sha256" development.tfplan.sha256
+
+      - name: Verify saved plan integrity
+        run: sha256sum --check development.tfplan.sha256
+
+      - name: Apply saved Terraform plan
+        run: terraform apply -input=false -auto-approve development.tfplan
+
+      - name: Remove temporary saved plan
+        if: always()
+        continue-on-error: true
+        run: aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}" && aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/${{ env.SAVED_PLAN_KEY }}.sha256"
