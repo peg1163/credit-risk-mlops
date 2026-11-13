@@ -1,6 +1,6 @@
 # MLOps implementation progress
 
-Last reviewed: 2026-09-19
+Last reviewed locally: 2026-11-12
 
 This document is the restart point for continuing the project from another
 computer or a new working session. It intentionally excludes credentials, AWS
@@ -9,13 +9,17 @@ state.
 
 ## Current phase
 
-The Data Science handoff and local containerized monthly pipeline are complete.
-The AWS foundation is deployed and its Terraform state is stored remotely. The
-current work adds an approved deployment path for the development stack.
+The Data Science handoff and local monthly pipeline are complete. The bootstrap
+AWS foundation was deployed in an earlier session. The repository now also has
+a **local SageMaker inference package** for the existing loan-account model:
+one container contract for Batch Transform and a temporary endpoint, a model
+archive, JSON Lines input and a deployment guide. See
+[`SAGEMAKER_HANDOFF.md`](SAGEMAKER_HANDOFF.md).
 
-The development data stack is defined and produces a reviewed seven-resource
-create plan, but it has not yet been applied. No managed runtime, scheduler or
-online inference service has been deployed.
+The development Terraform workflow is merged into `main`. The current AWS
+state, the development apply result and any AWS spending require verification
+with the owner's correct session before further cloud work. No SageMaker
+resources were created during the local packaging work.
 
 ## Completed work
 
@@ -36,32 +40,27 @@ online inference service has been deployed.
 - Development data bucket configuration defined with versioning, SSE-S3,
   public-access blocking, TLS-only access, ownership enforcement and lifecycle
   cost controls.
+- Approved development plan/apply workflow merged into `main`.
+- Local SageMaker serving container, model archive generator, monthly JSON Lines
+  input generator, manifest and endpoint example implemented.
+- SageMaker container built and exercised locally with the real model; all 11
+  Python tests passed on 2026-11-12.
 
 ## Work in progress
 
-Branch: `feat/terraform-development-deploy`
+The SageMaker packaging files and documentation are local working-tree changes;
+they have not been committed or pushed. Generated model and batch artifacts
+remain under ignored `dist/sagemaker/`.
 
-Unapplied bootstrap changes:
+Next cloud checkpoint, owned by the user:
 
-- allow the plan role to upload saved plans only under
-  `plans/development/*` in the private state bucket;
-- allow the approved development-apply role to read and delete only those
-  saved plans;
-- expire temporary plans and their noncurrent versions after two days.
-
-Terraform formatting and validation pass. The next gate is reviewing a saved
-bootstrap plan. Expected summary: one lifecycle resource added, two IAM inline
-policies changed, and zero resources destroyed. Do not apply if the result
-differs.
-
-After that bootstrap update, create the development deployment workflow:
-
-1. the plan job authenticates with the read-only plan role;
-2. it creates a saved binary plan and stores it privately in S3;
-3. the apply job targets the protected `development` GitHub Environment;
-4. after manual approval it assumes the development-apply role;
-5. it downloads, verifies and applies the same saved plan;
-6. it removes the temporary plan after completion.
+1. Sign in to the intended AWS and GitHub accounts and verify account ID,
+   credit eligibility, budgets, remote Terraform state and development stack.
+2. Produce a fresh development plan if needed; do not reuse an expired saved
+   plan. Reconcile any failed workflow before an apply.
+3. Follow the SageMaker handoff to push the image to ECR, upload the model and
+   input to S3, then test Batch Transform before creating an endpoint.
+4. Add monitoring jobs and MLflow after batch and endpoint parity is verified.
 
 ## AWS and security guardrails
 
@@ -93,7 +92,7 @@ GitHub Environments and GitHub Codespaces solve different problems:
 Recommended portable workflow:
 
 1. Use a Codespace or clone the repository on another trusted computer.
-2. Check out the active feature branch and install the versioned toolchain.
+2. Check out the intended Git branch and install the versioned toolchain.
 3. Recreate ignored local files from their committed `.example` templates.
 4. Authenticate to AWS again using a short-lived login when local AWS access is
    required; never copy login caches or credentials.
@@ -115,14 +114,17 @@ on a local workstation or GitHub-hosted Actions runner.
 - Docker images and container runtime data.
 - Local `.tfvars`, `.tfbackend`, `.terraform/`, plans and `*.tfstate*` files.
 - AWS CLI configuration, login cache and credentials.
+- Generated SageMaker model archive, JSON Lines files and example request under
+  `dist/sagemaker/`.
 
-## Definition of done for the current phase
+## Definition of done for the next AWS phase
 
-- Bootstrap permission changes produce no destructive actions and are applied.
-- GitHub Environment protection behavior is verified for the repository's
-  current visibility and plan.
-- Development `plan` and approved `apply` use different OIDC roles.
-- Apply consumes the exact saved plan rather than regenerating it.
-- The development S3 foundation is deployed from GitHub Actions.
-- A subsequent development plan reports no changes.
-- Recovery and cleanup behavior is documented and tested.
+- Development state and account identity have been verified with the owner's
+  intended session; any new Terraform apply uses a newly reviewed plan.
+- The ECR image digest and S3 model version are recorded.
+- Batch Transform produces the same scores and row count as local inference.
+- A temporary endpoint produces the same score for the example account and is
+  removed after the test.
+- Inputs, outputs and manifests are stored by period and batch ID.
+- Monitoring distinguishes immediate data checks from performance checks that
+  need six-month-mature labels.

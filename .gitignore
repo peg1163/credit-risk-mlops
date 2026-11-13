@@ -17,6 +17,7 @@ data-science/data/*.parquet
 data-science/artifacts/*.joblib
 data-science/artifacts/*.parquet
 data-science/artifacts/mlruns/
+dist/
 # Terraform working directories and local state
 **/.terraform/*
 *.tfstate
