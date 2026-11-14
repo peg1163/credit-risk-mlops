@@ -48,9 +48,15 @@ resources were created during the local packaging work.
 
 ## Work in progress
 
-The SageMaker packaging files and documentation are local working-tree changes;
-they have not been committed or pushed. Generated model and batch artifacts
+The SageMaker packaging files and documentation are committed on the
+`feat/sagemaker-package-ecr-wip` branch. Generated model and batch artifacts
 remain under ignored `dist/sagemaker/`.
+
+The ECR stack for `environments/dev` is being written on that same branch and
+does not apply cleanly yet. The design decisions, the open questions and the
+known defects are recorded in
+[`SAGEMAKER_INFRA_DECISIONS.md`](SAGEMAKER_INFRA_DECISIONS.md). Read that file
+before continuing the SageMaker infrastructure work.
 
 Next cloud checkpoint, owned by the user:
 
