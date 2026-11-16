@@ -20,7 +20,10 @@ if [[ -n "$(git -C "$PROJECT_ROOT" status --porcelain)" ]]; then
 fi
 
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+# SageMaker needs a single image manifest, not an index with attestations.
 docker build \
+    --provenance=false \
+    --sbom=false \
     --file "$PROJECT_ROOT/mlops/docker/sagemaker-inference.Dockerfile" \
     --build-arg "IMAGE_VERSION=$VERSION-$TAG" \
     --tag "$REPOSITORY_URL:$TAG" \

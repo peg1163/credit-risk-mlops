@@ -72,10 +72,14 @@ jobs:
         if: steps.exists.outputs.found == 'false'
         run: ./mlops/scripts/check-serving-rollback-window.sh "$REPOSITORY" "$ENDPOINT_NAME" "$RELEASE_IMAGES_TO_KEEP"
 
+      # SageMaker and Lambda need a single image manifest, not an OCI index
+      # with provenance or SBOM attestations.
       - name: Build image
         if: steps.exists.outputs.found == 'false'
         run: |
           docker build \
+            --provenance=false \
+            --sbom=false \
             --file mlops/docker/sagemaker-inference.Dockerfile \
             --build-arg "IMAGE_VERSION=${{ steps.tag.outputs.tag }}" \
             --tag "${{ steps.ecr.outputs.registry }}/$REPOSITORY:${{ steps.tag.outputs.tag }}" \
@@ -92,10 +96,16 @@ jobs:
         if: steps.exists.outputs.found == 'false'
         run: docker push "${{ steps.ecr.outputs.registry }}/$REPOSITORY:${{ steps.tag.outputs.tag }}"
 
-      - name: Record digest
+      - name: Verify single manifest and record digest
         if: steps.exists.outputs.found == 'false'
         run: |
+          media_type="$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=${{ steps.tag.outputs.tag }}" --query 'imageDetails[0].imageManifestMediaType' --output text)"
+          case "$media_type" in
+            application/vnd.docker.distribution.manifest.v2+json|application/vnd.oci.image.manifest.v1+json) ;;
+            *) echo "Unsupported manifest for SageMaker: $media_type" >&2; exit 1 ;;
+          esac
           digest="$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=${{ steps.tag.outputs.tag }}" --query 'imageDetails[0].imageDigest' --output text)"
+          echo "Published ${{ steps.tag.outputs.tag }} as $digest ($media_type)"
           {
             echo "### Serving image published"
             echo ""
