@@ -108,8 +108,9 @@ run "with_image_and_model_creates_serverless_endpoint" {
   command = apply
 
   variables {
-    serving_image_digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-    model_artifact_key   = "models/version=0.1.0/model.tar.gz"
+    serving_image_digest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    model_artifact_key     = "models/version=0.1.0/model.tar.gz"
+    endpoint_instance_type = null
   }
 
   assert {
@@ -145,5 +146,20 @@ run "with_image_and_model_creates_serverless_endpoint" {
   assert {
     condition     = length(aws_cloudwatch_metric_alarm.low_traffic) == 0
     error_message = "The low-traffic alarm stays off until a threshold is chosen."
+  }
+}
+
+run "with_instance_type_creates_realtime_endpoint" {
+  command = apply
+
+  variables {
+    serving_image_digest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    model_artifact_key     = "models/version=0.1.0/model.tar.gz"
+    endpoint_instance_type = "ml.t2.medium"
+  }
+
+  assert {
+    condition     = aws_sagemaker_endpoint_configuration.serving[0].production_variants[0].instance_type == "ml.t2.medium" && length(aws_sagemaker_endpoint_configuration.serving[0].production_variants[0].serverless_config) == 0
+    error_message = "An instance type must produce a real-time variant without serverless_config."
   }
 }
