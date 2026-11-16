@@ -59,6 +59,7 @@ data "aws_iam_policy_document" "github_actions_terraform_apply_development_permi
       "s3:DeleteBucketWebsite",
       "s3:DeleteLifecycleConfiguration",
       "s3:DeleteReplicationConfiguration",
+      "s3:GetAccelerateConfiguration",
       "s3:GetBucket*",
       "s3:GetEncryptionConfiguration",
       "s3:GetLifecycleConfiguration",
