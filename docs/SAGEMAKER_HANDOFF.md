@@ -26,11 +26,12 @@ umbral de decisión de 0.75 es demostrativo. Ver [Model Card](MODEL_CARD.md),
 |---|---|
 | Modelo campeón local `champion.joblib` | Entrenado; no se versiona en Git |
 | Servidor SageMaker `GET /ping` y `POST /invocations` | Implementado y probado localmente |
-| Imagen Docker `credit-risk-sagemaker:0.1.0` | Construida localmente; aún no está en ECR |
+| Imagen Docker de serving | Versión `0.2.0` con captura; la publica el workflow *Publish serving image* (ADR-0009) |
 | `model.tar.gz` con manifiesto y SHA-256 | Generado localmente; aún no está en S3 |
 | JSON Lines y manifiesto para enero de 1998 | Generados localmente; aún no están en S3 |
-| Bucket, roles, ECR, SageMaker Model, batch job, endpoint y MLflow en AWS | A cargo del propietario; no creados por este paquete |
-| Captura de respuestas del endpoint y monitoreo automático | Diseño pendiente de implementar en AWS |
+| ECR, rol de ejecución, endpoint serverless y monitoreo | En Terraform; ver [`SAGEMAKER_ENDPOINT_RUNBOOK.md`](SAGEMAKER_ENDPOINT_RUNBOOK.md) |
+| Captura de solicitudes del endpoint | Implementada en el contenedor (ADR-0008) |
+| Batch Transform y MLflow en AWS | A cargo del propietario; no creados por este paquete |
 
 La arquitectura ECS Fargate documentada en los ADR existentes sigue siendo otra
 línea de trabajo. Este paquete permite ensayar **SageMaker Batch Transform y un
@@ -136,7 +137,7 @@ antiguas; crear y revisar un plan nuevo.
    público bloqueado. Separar prefijos de modelo, features, predicciones,
    etiquetas y monitoreo. Registrar la versión S3 del objeto del modelo.
 2. **ECR.** Crear un repositorio privado, etiquetar y subir la imagen. Registrar
-   el **digest** de ECR, además de la etiqueta `0.1.0`; la etiqueta puede cambiar.
+   el **digest** de ECR. Los tags siguen ADR-0009 (`v<semver>-<sha7>`).
 3. **IAM.** Crear un rol de ejecución para SageMaker que pueda descargar la
    imagen y leer `models/` y `features/`, escribir `predictions/` y emitir logs.
    Inferencia no debe leer datos futuros `raw-archive/` ni `labels/`.
@@ -163,17 +164,22 @@ models/version=0.1.0/model.tar.gz
 features/period=1998-01/batch_id=<batch_id>/features.jsonl
 features/period=1998-01/batch_id=<batch_id>/features.jsonl.manifest.json
 predictions/period=1998-01/batch_id=<batch_id>/features.jsonl.out
-endpoint-capture/period=1998-01/<request_id>.json
+endpoint-capture/date=YYYY-MM-DD/capture.jsonl
 labels/period=1998-01/...
-monitoring/period=1998-01/...
+monitoring/reference/profile.json
+monitoring/endpoint/daily/date=YYYY-MM-DD/report.json
 ```
 
 El `<batch_id>` sale del manifiesto generado. SageMaker añade `.out` al archivo
 de salida de Batch Transform; la ruta concreta puede incluir subcarpetas
 derivadas del prefijo de entrada. Verificar el objeto generado antes de fijar
-una ruta exacta en un consumidor. El endpoint **no guarda automáticamente su
-respuesta**: la aplicación que lo invoca debe escribir su propio registro de
-auditoría en S3. No poner DNI, nombre ni otros datos personales en claves S3.
+una ruta exacta en un consumidor. El endpoint **guarda cada solicitud y su
+respuesta** con su propia captura (ADR-0008): el contenedor escribe una línea
+por registro en CloudWatch Logs y un job diario la copia a `endpoint-capture/`.
+No poner DNI, nombre ni otros datos personales en claves S3.
+
+Para Batch Transform, crear el SageMaker Model con `CAPTURE_ENABLED=false`:
+la captura del batch no forma parte del flujo del endpoint.
 
 ### Configuración inicial de Batch Transform
 
@@ -192,9 +198,13 @@ Al comparar batch con endpoint usar el mismo archivo de modelo y digest de
 imagen. Verificar 524 entradas y salidas, unicidad de `(account_id,
 observation_date)`, score finito en `[0,1]`, versión y dataset correctos.
 
-## 7. Monitoreo que se añadirá después del despliegue
+## 7. Monitoreo
 
-El empaquetado no implementa todavía jobs de monitoreo. La siguiente etapa
+El monitoreo del endpoint está implementado según ADR-0006: canary,
+copia diaria de la captura, calidad y drift diarios, alarmas y dashboard. Ver
+[`SAGEMAKER_ENDPOINT_RUNBOOK.md`](SAGEMAKER_ENDPOINT_RUNBOOK.md).
+
+Para el batch, la siguiente etapa
 propuesta es una ejecución por periodo que lea features, predicciones y,
 **seis meses después**, etiquetas maduras. Debe registrar en MLflow `period`,
 `batch_id`, versión S3 de entrada y modelo, digest ECR, Git SHA, conteos,

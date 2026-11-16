@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import tarfile
 import threading
@@ -14,7 +15,7 @@ import pytest
 
 from credit_risk.common import ARTIFACTS, DATA
 from credit_risk.predict import predict
-from credit_risk.sagemaker_serve import handler_for, load_bundle
+from credit_risk.sagemaker_serve import CAPTURE_EVENT, CaptureWriter, handler_for, load_bundle
 from mlops.sagemaker.package_model import package_model
 from mlops.sagemaker.prepare_batch import prepare_batch
 
@@ -88,3 +89,49 @@ def test_batch_rejects_wrong_period(tmp_path: Path, sample):
     parquet, _, _, _ = sample
     with pytest.raises(ValueError, match="outside the requested period"):
         prepare_batch(parquet, tmp_path / "wrong.jsonl", ARTIFACTS / "champion.joblib", "1998-02")
+
+
+def test_endpoint_captures_every_request(sample):
+    _, jsonl, _, records = sample
+    stream = io.StringIO()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(load_bundle(ARTIFACTS), CaptureWriter(stream, enabled=True)))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        real = Request(base + "/invocations", data=json.dumps(records[0]).encode(), headers={"Content-Type": "application/json"})
+        with urlopen(real) as response:
+            one = json.load(response)
+            assert response.headers["X-Amzn-SageMaker-Custom-Attributes"].startswith("request_id=")
+        canary = Request(
+            base + "/invocations",
+            data=json.dumps(records[1]).encode(),
+            headers={"Content-Type": "application/json", "X-Amzn-SageMaker-Custom-Attributes": "synthetic=canary"},
+        )
+        urlopen(canary).close()
+        batch = Request(base + "/invocations", data=jsonl.read_bytes(), headers={"Content-Type": "application/jsonlines"})
+        urlopen(batch).close()
+        bad = Request(base + "/invocations", data=b'{"account_id": 1}', headers={"Content-Type": "application/json"})
+        with pytest.raises(HTTPError):
+            urlopen(bad)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+    lines = [json.loads(line) for line in stream.getvalue().splitlines()]
+    assert len(lines) == 1 + 1 + 3 + 1
+    assert {line["event"] for line in lines} == {CAPTURE_EVENT}
+    first, synthetic, *batch_lines, rejected = lines
+    assert first["input"] == records[0] and first["output"] == one and not first["synthetic"]
+    assert synthetic["synthetic"] and synthetic["status"] == "accepted"
+    assert [line["record_index"] for line in batch_lines] == [0, 1, 2]
+    assert len({line["request_id"] for line in batch_lines}) == 1
+    assert rejected["status"] == "rejected" and rejected["http_status"] == 400
+    assert rejected["input"] is None and "missing" in rejected["error"]
+
+
+def test_capture_can_be_disabled():
+    stream = io.StringIO()
+    CaptureWriter(stream, enabled=False).write([{"event": CAPTURE_EVENT}])
+    assert stream.getvalue() == ""

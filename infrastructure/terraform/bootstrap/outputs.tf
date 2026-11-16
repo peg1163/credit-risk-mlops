@@ -45,3 +45,14 @@ output "github_actions_terraform_apply_development_role_name" {
   description = "Nombre del rol OIDC para Terraform apply aprobado en development."
   value       = aws_iam_role.github_actions_terraform_apply_development.name
 }
+
+output "github_actions_ecr_push_development_role_arn" {
+  description = "ARN del rol OIDC que publica imágenes de release de serving; guardarlo en la variable AWS_ECR_PUSH_ROLE_ARN de GitHub."
+  value       = aws_iam_role.github_actions_ecr_push_development.arn
+  sensitive   = true
+}
+
+output "github_actions_ecr_push_development_role_name" {
+  description = "Nombre del rol OIDC que publica imágenes de release de serving."
+  value       = aws_iam_role.github_actions_ecr_push_development.name
+}

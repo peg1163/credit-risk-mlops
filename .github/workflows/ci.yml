@@ -39,7 +39,7 @@ jobs:
         run: python -m pip check
 
       - name: Compile Python source
-        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures
+        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures mlops/monitoring
 
       - name: Validate inference script syntax
         run: bash -n mlops/scripts/run-inference.sh
@@ -58,6 +58,9 @@ jobs:
 
       - name: Validate container integration script syntax
         run: bash -n mlops/scripts/test-inference-container.sh
+
+      - name: Validate serving image script syntax
+        run: bash -n mlops/scripts/push-serving-image-dev.sh && bash -n mlops/scripts/check-serving-rollback-window.sh
 
   docker:
     name: Docker image
@@ -114,6 +117,14 @@ jobs:
       - name: Run inference smoke test
         run: ./mlops/scripts/test-inference-container.sh
 
+      - name: Build SageMaker serving image
+        run: docker build --file mlops/docker/sagemaker-inference.Dockerfile --build-arg IMAGE_VERSION=ci --tag credit-risk-sagemaker:ci .
+
+      - name: Verify SageMaker serving non-root user and version
+        run: |
+          test "$(docker image inspect credit-risk-sagemaker:ci --format '{{.Config.User}}')" = "appuser"
+          docker image inspect credit-risk-sagemaker:ci --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -qx "IMAGE_VERSION=ci"
+
       - name: Run monthly pipeline integration test
         run: ./mlops/scripts/test-monthly-pipeline.sh
 
@@ -146,11 +157,20 @@ jobs:
       - name: Check Terraform formatting
         run: terraform fmt -check
 
+      - name: Build monitoring Lambda zips
+        if: matrix.stack == 'environments/dev'
+        working-directory: .
+        run: python3 mlops/monitoring/build_lambdas.py
+
       - name: Initialize Terraform without backend
         run: terraform init -backend=false -input=false
 
       - name: Validate Terraform configuration
         run: terraform validate -no-color
+
+      - name: Run Terraform tests with a mocked provider
+        if: matrix.stack == 'environments/dev'
+        run: terraform test -no-color
 
       - name: Create local laboratory plan
         if: matrix.stack == 'lab-local'

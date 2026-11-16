@@ -1,4 +1,4 @@
-"""One inference contract for SageMaker real-time and Batch Transform."""
+"""One inference contract for SageMaker endpoints and Batch Transform, with request capture."""
 
 from __future__ import annotations
 
@@ -6,7 +6,11 @@ import json
 import hashlib
 import math
 import os
-from datetime import date
+import sys
+import threading
+import time
+import uuid
+from datetime import date, datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -19,6 +23,10 @@ MODEL_VERSION = "0.1.0"
 META_FIELDS = {"account_id", "observation_date"}
 CATEGORICAL_FIELDS = {"district_id", "statement_frequency"}
 MAX_BODY_BYTES = 6 * 1024 * 1024
+IMAGE_VERSION = os.environ.get("IMAGE_VERSION", "local")
+CAPTURE_EVENT = "inference_capture"
+CAPTURE_SCHEMA_VERSION = 1
+CANARY_ATTRIBUTE = "synthetic=canary"
 
 
 class InvalidRequest(ValueError):
@@ -114,7 +122,64 @@ def parse_body(body: bytes, content_type: str) -> tuple[list[dict], bool]:
     raise InvalidRequest("Use application/json or application/jsonlines")
 
 
-def handler_for(bundle: dict):
+def is_synthetic(custom_attributes: str) -> bool:
+    parts = custom_attributes.replace(",", ";").split(";")
+    return any(part.strip() == CANARY_ATTRIBUTE for part in parts)
+
+
+def capture_lines(
+    request_id: str,
+    synthetic: bool,
+    content_type: str,
+    http_status: int,
+    records: list[dict] | None,
+    results: list[dict] | None,
+    error: str | None,
+    latency_ms: float,
+) -> list[dict]:
+    """One line per scored record, or one line for a request that was not scored."""
+    common = {
+        "event": CAPTURE_EVENT,
+        "capture_schema_version": CAPTURE_SCHEMA_VERSION,
+        "request_id": request_id,
+        "captured_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        "synthetic": synthetic,
+        "content_type": content_type,
+        "http_status": http_status,
+        "image_version": IMAGE_VERSION,
+        "model_version": MODEL_VERSION,
+        "latency_ms": round(latency_ms, 3),
+    }
+    if results is not None and records is not None:
+        return [
+            {**common, "status": "accepted", "record_index": index, "record_count": len(results), "input": record, "output": result, "error": None}
+            for index, (record, result) in enumerate(zip(records, results, strict=True))
+        ]
+    status = "rejected" if http_status == 400 else "error"
+    return [{**common, "status": status, "record_index": None, "record_count": 0, "input": None, "output": None, "error": error}]
+
+
+class CaptureWriter:
+    """Writes capture lines to stdout; SageMaker ships stdout to CloudWatch Logs."""
+
+    def __init__(self, stream=None, enabled: bool | None = None):
+        self.stream = stream
+        self.enabled = os.environ.get("CAPTURE_ENABLED", "true").lower() != "false" if enabled is None else enabled
+        self.lock = threading.Lock()
+
+    def write(self, lines: list[dict]) -> None:
+        if not self.enabled:
+            return
+        text = "".join(json.dumps(line, allow_nan=False, separators=(",", ":")) + "\n" for line in lines)
+        stream = self.stream or sys.stdout
+        with self.lock:
+            stream.write(text)
+            stream.flush()
+
+
+def handler_for(bundle: dict, capture: CaptureWriter | None = None):
+    capture = capture or CaptureWriter()
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/ping":
@@ -128,28 +193,42 @@ def handler_for(bundle: dict):
             if self.path != "/invocations":
                 self.send_error(404)
                 return
+            started = time.perf_counter()
+            request_id = uuid.uuid4().hex
+            synthetic = is_synthetic(self.headers.get("X-Amzn-SageMaker-Custom-Attributes", ""))
+            content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            records = results = error = None
             try:
                 size = int(self.headers.get("Content-Length", "0"))
                 if size <= 0 or size > MAX_BODY_BYTES:
                     raise InvalidRequest("Request body must be between 1 byte and 6 MiB")
-                content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
                 records, lines = parse_body(self.rfile.read(size), content_type)
                 results = predict_records(bundle, records)
                 payload = ("\n".join(json.dumps(item, allow_nan=False) for item in results) + "\n").encode() if lines else json.dumps(results[0], allow_nan=False).encode()
-                self.send_response(200)
+                status = 200
+                self.send_response(status)
                 self.send_header("Content-Type", "application/jsonlines" if lines else "application/json")
-            except InvalidRequest as error:
-                payload = json.dumps({"error": str(error)}).encode()
-                self.send_response(400)
+            except InvalidRequest as invalid:
+                results = None
+                error = str(invalid)
+                payload = json.dumps({"error": error}).encode()
+                status = 400
+                self.send_response(status)
                 self.send_header("Content-Type", "application/json")
             except Exception:
                 self.log_error("Inference failed")
+                results = None
+                error = "Inference failed"
                 payload = b'{"error":"Inference failed"}'
-                self.send_response(500)
+                status = 500
+                self.send_response(status)
                 self.send_header("Content-Type", "application/json")
+            self.send_header("X-Amzn-SageMaker-Custom-Attributes", f"request_id={request_id}")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
+            latency_ms = (time.perf_counter() - started) * 1000
+            capture.write(capture_lines(request_id, synthetic, content_type, status, records, results, error, latency_ms))
 
     return Handler
 

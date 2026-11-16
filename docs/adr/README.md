@@ -27,6 +27,8 @@ Estados permitidos: `Borrador`, `Propuesto`, `Aceptado`, `Rechazado`,
 | [ADR-0005](0005-registro-y-promocion-de-modelos.md) | Registro y promoción de modelos | Propuesto |
 | [ADR-0006](0006-observabilidad-y-alertas.md) | Observabilidad y alertas | Propuesto |
 | [ADR-0007](0007-flujo-terraform-plan-apply.md) | Flujo Terraform plan/apply | Aceptado |
+| [ADR-0008](0008-endpoint-serverless-con-captura-propia.md) | Endpoint serverless con captura propia | Propuesto |
+| [ADR-0009](0009-tags-y-retencion-de-imagenes-ecr.md) | Tags y retención de imágenes en ECR | Propuesto |
 
 Para una decisión nueva, copiar [`0000-template.md`](0000-template.md), asignar
 el siguiente número y agregarla a este índice.

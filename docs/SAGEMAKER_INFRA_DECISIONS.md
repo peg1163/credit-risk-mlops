@@ -1,6 +1,6 @@
 # Notas de diseño: infraestructura SageMaker y ECR
 
-Última revisión: 2026-11-13
+Última revisión: 2026-11-16
 
 Este documento recoge el diseño discutido para llevar el modelo a SageMaker.
 Son **notas de trabajo, no decisiones formales**: las decisiones vinculantes
@@ -90,7 +90,11 @@ Dos argumentos de `aws_ecr_repository` fuerzan reemplazo del recurso, y con
 Hacer el cambio a `for_each` antes del primer apply también evita tener que
 usar bloques `moved` o cirugía de state más adelante.
 
-### Convención de tags, sin cerrar
+### Convención de tags
+
+**Decidida en [ADR-0009](adr/0009-tags-y-retencion-de-imagenes-ecr.md)**
+(Propuesto): releases `v<semver>-<sha7>`, pruebas `dev-<sha7>`, 10 releases
+conservadas. Lo que sigue es el razonamiento original.
 
 `image_tag_mutability = "IMMUTABLE"` implica que un tag no se puede reescribir,
 así que semver puro falla cuando hay que reconstruir una misma versión, y
@@ -98,14 +102,17 @@ así que semver puro falla cuando hay que reconstruir una misma versión, y
 
 1. la persona que lee la consola de ECR;
 2. el filtro de la política de ciclo de vida;
-3. el `SageMaker Model`, que **fija el URI con tag de forma permanente**.
+3. el `SageMaker Model`, que fija el URI de forma permanente. Como el Model
+   referencia la imagen por digest (ADR-0005), el tag no decide qué se ejecuta.
 
 Opciones en discusión: semver con bump obligatorio, SHA de commit, o compuesto
 `version-sha`. No decidido.
 
-### Errores conocidos en `ecr.tf`
+### Errores conocidos en `ecr.tf` (corregidos el 2026-11-16)
 
-Commiteados a propósito como trabajo en progreso:
+Todos se corrigieron al implementar ADR-0009; el repositorio se renombró a
+`serving` y se mantuvo uno solo, porque hoy solo la imagen de serving corre en
+AWS. Lista original:
 
 - `rulePriority` y `countNumber` están como string; la API espera enteros.
 - `tagStatus = "tagged"` requiere `tagPrefixList` o `tagPatternList`.
@@ -117,7 +124,11 @@ Commiteados a propósito como trabajo en progreso:
 Ni `validate` ni `plan` detectan estos errores: el provider pasa el JSON tal
 cual y AWS lo rechaza en el `apply`.
 
-### Permisos pendientes en bootstrap
+### Permisos en bootstrap (implementados el 2026-11-16)
+
+`bootstrap/github_development_serving_permissions.tf` agrega una política de
+lectura (plan y apply), una de administración (apply) y un rol aparte de push
+a ECR para el workflow de publicación. Situación original:
 
 Una búsqueda de `ecr` sobre `infrastructure/terraform/bootstrap/` no devuelve
 nada. Hacen falta dos conjuntos de permisos distintos y no deberían vivir en el
@@ -302,11 +313,10 @@ quedado callados cuando no.
 - Qué imágenes corren en AWS; `replay` sigue sin decidirse.
 - Una imagen de runtime con dos entrypoints, o separadas.
 - Imagen propia de training o script mode.
-- Convención de tags para las imágenes que suben a ECR.
-- Si se acepta el endpoint sin data capture ni Model Monitor, o se usa
-  real-time.
-- Número de retención de la política de ciclo de vida, atado a la ventana de
-  rollback del ADR-0005.
+- ~~Convención de tags~~: ADR-0009.
+- ~~Endpoint sin data capture ni Model Monitor~~: ADR-0008, serverless con
+  captura propia.
+- ~~Número de retención~~: 10 releases, ADR-0009.
 - Resolución del propietario en el ADR-0005, hoy en blanco.
 
 ## 8. ADR que habría que tocar

@@ -1,8 +1,12 @@
 FROM python:3.11-slim
 
+# Version of this serving image, not of the model. See ADR-0009.
+ARG IMAGE_VERSION=local
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/data-science/src
+    PYTHONPATH=/app/data-science/src \
+    IMAGE_VERSION=${IMAGE_VERSION}
 
 WORKDIR /app
 COPY data-science/requirements-inference.txt /app/requirements.txt
