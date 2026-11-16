@@ -18,22 +18,32 @@ def ks(y,p):
 def metrics(y,p,threshold):
     pred=(p>=threshold).astype(int)
     return {"roc_auc":roc_auc_score(y,p),"pr_auc":average_precision_score(y,p),"brier":brier_score_loss(y,p),"ks":ks(y,p),"precision":precision_score(y,pred,zero_division=0),"recall":recall_score(y,pred,zero_division=0),"threshold":threshold,"confusion_matrix":confusion_matrix(y,pred).tolist(),"rows":len(y),"events":int(np.sum(y))}
-def split(df):
-    c=config()["splits"]
+def split(df,splits=None):
+    c=splits or config()["splits"]
     mature=df[df.is_mature]
     return {"train":mature[mature.observation_date.le(c["train_end"])],"validation":mature[mature.observation_date.between(c["validation_start"],c["validation_end"])],"test":mature[mature.observation_date.between(c["test_start"],c["test_end"])]}
-def train():
-    df=pd.read_parquet(DATA/"modeling_dataset.parquet"); parts=split(df)
+def build_model(C=0.5,seed=None):
     prep=ColumnTransformer([("num",Pipeline([("imp",SimpleImputer(strategy="median",add_indicator=True)),("scale",StandardScaler())]),NUM),("cat",Pipeline([("imp",SimpleImputer(strategy="most_frequent")),("onehot",OneHotEncoder(handle_unknown="ignore"))]),CAT)])
-    model=Pipeline([("preprocess",prep),("model",LogisticRegression(C=0.5,class_weight="balanced",max_iter=2000,random_state=config()["random_seed"]))])
-    model.fit(parts["train"][FEATURES],parts["train"].target)
-    pv=model.predict_proba(parts["validation"][FEATURES])[:,1]
+    return Pipeline([("preprocess",prep),("model",LogisticRegression(C=C,class_weight="balanced",max_iter=2000,random_state=config()["random_seed"] if seed is None else seed))])
+def f1_threshold(y,p):
     thresholds=np.linspace(.05,.95,181); f1=[]
     for t in thresholds:
-      pr=precision_score(parts["validation"].target,pv>=t,zero_division=0); re=recall_score(parts["validation"].target,pv>=t,zero_division=0); f1.append(2*pr*re/(pr+re) if pr+re else 0)
-    threshold=float(thresholds[int(np.argmax(f1))])
+      pr=precision_score(y,p>=t,zero_division=0); re=recall_score(y,p>=t,zero_division=0); f1.append(2*pr*re/(pr+re) if pr+re else 0)
+    return float(thresholds[int(np.argmax(f1))])
+def fit(parts,C=0.5,seed=None):
+    """Fits on train and picks the F1 threshold on validation; returns (model, threshold)."""
+    model=build_model(C,seed); model.fit(parts["train"][FEATURES],parts["train"].target)
+    return model,f1_threshold(parts["validation"].target,model.predict_proba(parts["validation"][FEATURES])[:,1])
+def bundle(model,threshold):
+    return {"model":model,"features":FEATURES,"threshold":threshold,"dataset_id":config()["dataset_id"],"feature_pipeline_version":config()["feature_pipeline_version"]}
+def tracking_uri():
+    """MLFLOW_TRACKING_URI wins (for example the SageMaker MLflow App ARN); otherwise the local store."""
+    return os.environ.get("MLFLOW_TRACKING_URI") or (ARTIFACTS/"mlruns").resolve().as_uri()
+def train():
+    df=pd.read_parquet(DATA/"modeling_dataset.parquet"); parts=split(df)
+    model,threshold=fit(parts)
     all_metrics={k:metrics(v.target,model.predict_proba(v[FEATURES])[:,1],threshold) for k,v in parts.items()}
-    ARTIFACTS.mkdir(parents=True,exist_ok=True); joblib.dump({"model":model,"features":FEATURES,"threshold":threshold,"dataset_id":config()["dataset_id"],"feature_pipeline_version":config()["feature_pipeline_version"]},ARTIFACTS/"champion.joblib")
+    ARTIFACTS.mkdir(parents=True,exist_ok=True); joblib.dump(bundle(model,threshold),ARTIFACTS/"champion.joblib")
     write_json(ARTIFACTS/"metrics.json",all_metrics)
     rows=[]
     for name,part in parts.items():
@@ -41,7 +51,7 @@ def train():
     pd.concat(rows).to_parquet(ARTIFACTS/"evaluation_predictions.parquet",index=False)
     try:
       import mlflow
-      mlflow.set_tracking_uri((ARTIFACTS/"mlruns").resolve().as_uri()); mlflow.set_experiment("credit-risk-baseline")
+      mlflow.set_tracking_uri(tracking_uri()); mlflow.set_experiment("credit-risk-baseline")
       with mlflow.start_run(run_name="logistic-regression-v1"):
         mlflow.log_params({"model":"logistic_regression","C":0.5,"class_weight":"balanced","dataset_id":config()["dataset_id"],"feature_pipeline_version":config()["feature_pipeline_version"],"train_cutoff":config()["splits"]["train_end"]})
         for sp,vals in all_metrics.items():

@@ -98,6 +98,12 @@ variable "serverless_max_concurrency" {
   }
 }
 
+variable "mlflow_app_enabled" {
+  description = "Crea la MLflow App serverless de SageMaker (ADR-0010). No tiene cargo por hora; solo se paga el almacenamiento de sus artefactos."
+  type        = bool
+  default     = true
+}
+
 variable "log_retention_days" {
   description = "Retención de los logs del endpoint y de las Lambdas; la copia permanente de la captura vive en S3 (ADR-0004)."
   type        = number

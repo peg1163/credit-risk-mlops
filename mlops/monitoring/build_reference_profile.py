@@ -24,7 +24,10 @@ CATEGORICAL = {"district_id", "statement_frequency"}
 
 def reference_profile(dataset_path: Path, model_path: Path) -> dict:
     bundle = joblib.load(model_path)
-    train = split(pd.read_parquet(dataset_path))["train"]
+    return profile_from(split(pd.read_parquet(dataset_path))["train"], bundle)
+
+
+def profile_from(train: pd.DataFrame, bundle: dict) -> dict:
     features = bundle["features"]
     frame = train[features].astype(object).where(train[features].notna(), None)
     columns = {name: frame[name].tolist() for name in features}

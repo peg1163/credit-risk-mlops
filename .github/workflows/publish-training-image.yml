@@ -1,0 +1,118 @@
+name: Publish training image
+
+# Release images of the SageMaker training image, tagged v<semver>-<sha7>
+# (ADR-0009, ADR-0010). Only main can assume the push role. No rollback-window
+# check: no endpoint runs this image; the manifest of each trained model names
+# the training job, and the job names the image digest.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - data-science/src/**
+      - data-science/configs/**
+      - data-science/requirements-training.txt
+      - mlops/docker/sagemaker-training.Dockerfile
+      - mlops/docker/sagemaker-training.version
+      - mlops/experiments/**
+      - mlops/monitoring/quality.py
+      - mlops/monitoring/build_reference_profile.py
+      - mlops/sagemaker/train.py
+      - mlops/sagemaker/package_model.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-training-image
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  REPOSITORY: credit-risk-mlops-development-sagemaker-training
+
+jobs:
+  publish:
+    name: Build and push release image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Compute release tag
+        id: tag
+        run: |
+          version="$(tr -d '[:space:]' < mlops/docker/sagemaker-training.version)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure temporary push credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-publish-training-image
+          mask-aws-account-id: true
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Skip if the tag already exists
+        id: exists
+        run: |
+          if aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=${{ steps.tag.outputs.tag }}" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.tag.outputs.tag }} already exists; tags are immutable, nothing to push." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # SageMaker needs a single image manifest, not an OCI index with
+      # provenance or SBOM attestations.
+      - name: Build image
+        if: steps.exists.outputs.found == 'false'
+        run: |
+          docker build \
+            --provenance=false \
+            --sbom=false \
+            --file mlops/docker/sagemaker-training.Dockerfile \
+            --build-arg "IMAGE_VERSION=${{ steps.tag.outputs.tag }}" \
+            --tag "${{ steps.ecr.outputs.registry }}/$REPOSITORY:${{ steps.tag.outputs.tag }}" \
+            .
+
+      - name: Verify image metadata
+        if: steps.exists.outputs.found == 'false'
+        run: |
+          image="${{ steps.ecr.outputs.registry }}/$REPOSITORY:${{ steps.tag.outputs.tag }}"
+          test "$(docker image inspect "$image" --format '{{json .Config.Entrypoint}}')" = '["python","-m","mlops.sagemaker.train"]'
+          docker image inspect "$image" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -qx "IMAGE_VERSION=${{ steps.tag.outputs.tag }}"
+
+      - name: Push image
+        if: steps.exists.outputs.found == 'false'
+        run: docker push "${{ steps.ecr.outputs.registry }}/$REPOSITORY:${{ steps.tag.outputs.tag }}"
+
+      - name: Verify single manifest and record digest
+        if: steps.exists.outputs.found == 'false'
+        run: |
+          media_type="$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=${{ steps.tag.outputs.tag }}" --query 'imageDetails[0].imageManifestMediaType' --output text)"
+          case "$media_type" in
+            application/vnd.docker.distribution.manifest.v2+json|application/vnd.oci.image.manifest.v1+json) ;;
+            *) echo "Unsupported manifest for SageMaker: $media_type" >&2; exit 1 ;;
+          esac
+          digest="$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=${{ steps.tag.outputs.tag }}" --query 'imageDetails[0].imageDigest' --output text)"
+          echo "Published ${{ steps.tag.outputs.tag }} as $digest ($media_type)"
+          {
+            echo "### Training image published"
+            echo ""
+            echo "- Tag: \`${{ steps.tag.outputs.tag }}\`"
+            echo "- Digest: \`$digest\`"
+            echo ""
+            echo "Start a job with \`python mlops/sagemaker/start_training_job.py --image <training_repository_url>@$digest ...\`."
+          } >> "$GITHUB_STEP_SUMMARY"

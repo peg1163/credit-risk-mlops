@@ -13,5 +13,10 @@ locals {
   endpoint_config_id = local.endpoint_enabled ? substr(sha1("${var.serving_image_digest}|${var.model_artifact_key}|${coalesce(var.endpoint_instance_type, "serverless")}"), 0, 10) : null
 
   capture_log_group = "/aws/sagemaker/Endpoints/${local.endpoint_name}"
-  metric_namespace  = "CreditRisk/Endpoint"
+
+  # S3 prefixes of training and experiment tracking (ADR-0004, ADR-0010).
+  training_dataset_prefix = "datasets"
+  training_output_prefix  = "models/training-jobs"
+  mlflow_artifact_prefix  = "mlflow"
+  metric_namespace        = "CreditRisk/Endpoint"
 }

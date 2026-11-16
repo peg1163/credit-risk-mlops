@@ -39,7 +39,7 @@ jobs:
         run: python -m pip check
 
       - name: Compile Python source
-        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures mlops/monitoring
+        run: python -m compileall -q data-science/src data-science/predict.py data-science/tests/fixtures mlops/monitoring mlops/experiments mlops/sagemaker
 
       - name: Validate inference script syntax
         run: bash -n mlops/scripts/run-inference.sh
@@ -124,6 +124,15 @@ jobs:
         run: |
           test "$(docker image inspect credit-risk-sagemaker:ci --format '{{.Config.User}}')" = "appuser"
           docker image inspect credit-risk-sagemaker:ci --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -qx "IMAGE_VERSION=ci"
+
+      - name: Build SageMaker training image
+        run: docker build --file mlops/docker/sagemaker-training.Dockerfile --build-arg IMAGE_VERSION=ci --tag credit-risk-sagemaker-training:ci .
+
+      - name: Verify SageMaker training entrypoint and dependencies
+        run: |
+          test "$(docker image inspect credit-risk-sagemaker-training:ci --format '{{json .Config.Entrypoint}}')" = '["python","-m","mlops.sagemaker.train"]'
+          docker run --rm --entrypoint pip credit-risk-sagemaker-training:ci check
+          docker run --rm --entrypoint python credit-risk-sagemaker-training:ci -c "import sagemaker_mlflow, mlops.experiments.retraining, mlops.sagemaker.train"
 
       - name: Run monthly pipeline integration test
         run: ./mlops/scripts/test-monthly-pipeline.sh

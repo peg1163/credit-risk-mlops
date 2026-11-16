@@ -31,7 +31,8 @@ umbral de decisión de 0.75 es demostrativo. Ver [Model Card](MODEL_CARD.md),
 | JSON Lines y manifiesto para enero de 1998 | Generados localmente; aún no están en S3 |
 | ECR, rol de ejecución, endpoint serverless y monitoreo | En Terraform; ver [`SAGEMAKER_ENDPOINT_RUNBOOK.md`](SAGEMAKER_ENDPOINT_RUNBOOK.md) |
 | Captura de solicitudes del endpoint | Implementada en el contenedor (ADR-0008) |
-| Batch Transform y MLflow en AWS | A cargo del propietario; no creados por este paquete |
+| Training jobs y MLflow App serverless | En Terraform y `mlops/sagemaker/train.py`; ver [`SAGEMAKER_TRAINING_AND_EXPERIMENTS.md`](SAGEMAKER_TRAINING_AND_EXPERIMENTS.md) (ADR-0010) |
+| Batch Transform | A cargo del propietario; no creado por este paquete |
 
 La arquitectura ECS Fargate documentada en los ADR existentes sigue siendo otra
 línea de trabajo. Este paquete permite ensayar **SageMaker Batch Transform y un

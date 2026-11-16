@@ -29,6 +29,7 @@ Estados permitidos: `Borrador`, `Propuesto`, `Aceptado`, `Rechazado`,
 | [ADR-0007](0007-flujo-terraform-plan-apply.md) | Flujo Terraform plan/apply | Aceptado |
 | [ADR-0008](0008-endpoint-serverless-con-captura-propia.md) | Endpoint serverless con captura propia | Propuesto |
 | [ADR-0009](0009-tags-y-retencion-de-imagenes-ecr.md) | Tags y retención de imágenes en ECR | Propuesto |
+| [ADR-0010](0010-entrenamiento-y-experimentos-en-sagemaker.md) | Entrenamiento y experimentos en SageMaker | Propuesto |
 
 Para una decisión nueva, copiar [`0000-template.md`](0000-template.md), asignar
 el siguiente número y agregarla a este índice.

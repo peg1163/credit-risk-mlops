@@ -41,13 +41,16 @@ separados y SSE-KMS según sensibilidad, cumplimiento y amenaza real.
 
 ### Prefijos del endpoint y del monitoreo
 
-ADR-0008 y ADR-0006 agregan dos prefijos al bucket de development:
+ADR-0008, ADR-0006 y ADR-0010 agregan estos prefijos al bucket de development:
 
 | Prefijo | Escribe | Lee |
 |---|---|---|
 | `endpoint-capture/date=YYYY-MM-DD/capture.jsonl` | job diario de copia desde CloudWatch Logs | job de calidad y evaluación retrospectiva |
 | `monitoring/reference/profile.json` | persona, al promover un campeón | job de calidad |
 | `monitoring/endpoint/daily/date=YYYY-MM-DD/report.json` | job de calidad | personas y dashboards |
+| `datasets/modeling/<dataset_id>/modeling_dataset.parquet` | persona (ADR-0010) | training jobs |
+| `models/training-jobs/<job>/output/` | training jobs (ADR-0010) | personas, endpoint tras promoción |
+| `mlflow/` | MLflow App y clientes de MLflow (ADR-0010) | MLflow App |
 
 - El rol de ejecución del endpoint solo lee `models/`. No escribe en S3, porque
   la captura sale por CloudWatch Logs, y no lee `raw-archive/` ni `labels/`.

@@ -8,6 +8,8 @@ dependencies = [
 ]
 [project.optional-dependencies]
 dev = ["pytest==8.4.2"]
+# Log local runs to the SageMaker MLflow App (ADR-0010).
+aws = ["sagemaker-mlflow==0.5.0", "boto3==1.44.3"]
 [tool.pytest.ini_options]
 testpaths = ["data-science/tests"]
 pythonpath = ["data-science"]

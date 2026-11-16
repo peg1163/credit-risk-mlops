@@ -57,6 +57,12 @@ mock_provider "aws" {
     }
   }
 
+  mock_resource "aws_sagemaker_mlflow_app" {
+    defaults = {
+      arn = "arn:aws:sagemaker:us-east-1:123456789012:mlflow-app/app-MOCK"
+    }
+  }
+
   mock_data "aws_iam_policy_document" {
     defaults = {
       json = "{}"
@@ -161,5 +167,49 @@ run "with_instance_type_creates_realtime_endpoint" {
   assert {
     condition     = aws_sagemaker_endpoint_configuration.serving[0].production_variants[0].instance_type == "ml.t2.medium" && length(aws_sagemaker_endpoint_configuration.serving[0].production_variants[0].serverless_config) == 0
     error_message = "An instance type must produce a real-time variant without serverless_config."
+  }
+}
+
+run "training_and_mlflow_app" {
+  command = apply
+
+  variables {
+    serving_image_digest = null
+    model_artifact_key   = null
+  }
+
+  assert {
+    condition     = aws_ecr_repository.training.image_tag_mutability == "IMMUTABLE" && aws_ecr_lifecycle_policy.training.policy == aws_ecr_lifecycle_policy.serving.policy
+    error_message = "The training repository follows the same tags and retention as serving (ADR-0009)."
+  }
+
+  assert {
+    condition     = aws_sagemaker_mlflow_app.this[0].artifact_store_uri == "s3://${aws_s3_bucket.data_lake.id}/mlflow" && aws_sagemaker_mlflow_app.this[0].model_registration_mode == "AutoModelRegistrationDisabled"
+    error_message = "The MLflow App stores artifacts under mlflow/ and does not register models (ADR-0005, ADR-0010)."
+  }
+
+  assert {
+    condition     = output.mlflow_app_arn == "arn:aws:sagemaker:us-east-1:123456789012:mlflow-app/app-MOCK"
+    error_message = "The MLflow App ARN is the tracking URI and must be an output."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.training_jobs.retention_in_days == 30
+    error_message = "Training job logs need a finite retention."
+  }
+}
+
+run "without_mlflow_app" {
+  command = plan
+
+  variables {
+    serving_image_digest = null
+    model_artifact_key   = null
+    mlflow_app_enabled   = false
+  }
+
+  assert {
+    condition     = length(aws_sagemaker_mlflow_app.this) == 0 && length(aws_iam_role.mlflow_app) == 0
+    error_message = "mlflow_app_enabled = false must remove the app and its role."
   }
 }
