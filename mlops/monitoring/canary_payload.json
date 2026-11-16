@@ -1,0 +1,21 @@
+{
+  "account_id": 0,
+  "observation_date": "1998-01-31",
+  "loan_age_months": 15,
+  "loan_amount": 104712,
+  "loan_duration": 36,
+  "scheduled_payment": 3810.0,
+  "current_balance": 38791.6,
+  "balance_mean_3m": 43180.9,
+  "balance_min_3m": 24439.1,
+  "balance_change_3m": 434.3,
+  "credit_sum_3m": 72794.4,
+  "withdrawal_sum_3m": 65674.2,
+  "net_flow_3m": 5225.1,
+  "transaction_count_3m": 22.0,
+  "sanction_count_3m": 0.0,
+  "loan_payment_sum_3m": 7701.9,
+  "current_payment_ratio": 1.0,
+  "district_id": 38,
+  "statement_frequency": "POPLATEK MESICNE"
+}

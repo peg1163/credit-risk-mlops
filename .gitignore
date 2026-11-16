@@ -17,6 +17,7 @@ data-science/data/*.parquet
 data-science/artifacts/*.joblib
 data-science/artifacts/*.parquet
 data-science/artifacts/mlruns/
+dist/
 # Terraform working directories and local state
 **/.terraform/*
 *.tfstate
@@ -27,6 +28,8 @@ crash.*.log
 # Variable files can contain credentials or environment-specific values
 *.tfvars
 *.tfvars.json
+# The deployed serving release is reviewed in Git (ADR-0005); it holds no secrets.
+!infrastructure/terraform/environments/dev/serving-release.auto.tfvars.json
 
 # Local Terraform plan files
 *.tfplan
@@ -36,3 +39,6 @@ infrastructure/terraform/lab-local/terraform-generated.txt
 
 # Local Terraform backend configuration
 *.tfbackend
+
+# Monitoring Lambda zips built by mlops/monitoring/build_lambdas.py
+infrastructure/terraform/environments/dev/.build/

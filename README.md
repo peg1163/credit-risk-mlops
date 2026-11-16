@@ -22,6 +22,10 @@ This is educational software. It must not be used for lending decisions.
 
 See [`DATA_SCIENCE_HANDOFF.md`](DATA_SCIENCE_HANDOFF.md) for the operational contract, [`docs/MLOPS_PROGRESS.md`](docs/MLOPS_PROGRESS.md) for the exact implementation checkpoint, and [`data-science/README.md`](data-science/README.md) for scientific commands.
 
+For the local SageMaker inference package and the AWS owner handoff, see
+[`docs/SAGEMAKER_HANDOFF.md`](docs/SAGEMAKER_HANDOFF.md). This is an experimental
+path for the existing loan-account model; it has not been deployed to AWS.
+
 The proposed cloud architecture, delivery phases, Mermaid diagrams, and review
 gates are documented in [`docs/TECHNICAL_DEVELOPMENT.md`](docs/TECHNICAL_DEVELOPMENT.md).
 Architecture decisions remain non-authoritative until reviewed in

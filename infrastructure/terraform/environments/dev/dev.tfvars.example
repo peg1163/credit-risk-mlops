@@ -1,4 +1,12 @@
-aws_region        = "us-east-1"
+aws_region         = "us-east-1"
 allowed_account_id = "123456789012"
-project_name      = "credit-risk-mlops"
-environment       = "development"
+project_name       = "credit-risk-mlops"
+environment        = "development"
+
+# Segundo apply, después de subir la imagen a ECR y el modelo a S3:
+# serving_image_digest = "sha256:<64 hex>"
+# model_artifact_key   = "models/version=0.1.0/model.tar.gz"
+
+# Opcionales:
+# alert_email             = "<correo>"   # mejor por TF_VAR_alert_email
+# min_daily_real_requests = 10
