@@ -71,6 +71,12 @@ variables {
 run "without_image_only_registry_and_topics" {
   command = plan
 
+  # Overrides serving-release.auto.tfvars.json, which holds the deployed release.
+  variables {
+    serving_image_digest = null
+    model_artifact_key   = null
+  }
+
   assert {
     condition     = length(aws_sagemaker_endpoint.serving) == 0 && length(aws_lambda_function.monitoring) == 0
     error_message = "The endpoint and its monitoring must wait for an image digest and a model key."
