@@ -106,15 +106,23 @@ resource "aws_sagemaker_model" "serving" {
 resource "aws_sagemaker_endpoint_configuration" "serving" {
   count = local.endpoint_enabled ? 1 : 0
 
-  name = "${local.endpoint_name}-${local.deployment_id}"
+  name = "${local.endpoint_name}-${local.endpoint_config_id}"
 
   production_variants {
     variant_name = "AllTraffic"
     model_name   = aws_sagemaker_model.serving[0].name
 
-    serverless_config {
-      memory_size_in_mb = var.serverless_memory_mb
-      max_concurrency   = var.serverless_max_concurrency
+    # Real-time on one instance when endpoint_instance_type is set; serverless otherwise.
+    instance_type          = var.endpoint_instance_type
+    initial_instance_count = var.endpoint_instance_type != null ? 1 : null
+
+    dynamic "serverless_config" {
+      for_each = var.endpoint_instance_type == null ? [1] : []
+
+      content {
+        memory_size_in_mb = var.serverless_memory_mb
+        max_concurrency   = var.serverless_max_concurrency
+      }
     }
   }
 

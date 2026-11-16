@@ -65,6 +65,17 @@ variable "model_artifact_key" {
   }
 }
 
+variable "endpoint_instance_type" {
+  description = "Tipo de instancia para un endpoint real-time. null mantiene el endpoint serverless de ADR-0008."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.endpoint_instance_type == null || can(regex("^ml\\.", var.endpoint_instance_type))
+    error_message = "endpoint_instance_type debe ser un tipo de instancia de SageMaker, por ejemplo ml.t2.medium."
+  }
+}
+
 variable "serverless_memory_mb" {
   description = "Memoria del endpoint serverless."
   type        = number

@@ -9,6 +9,9 @@ locals {
   # SageMaker Model and EndpointConfig (ADR-0005).
   deployment_id = local.endpoint_enabled ? substr(sha1("${var.serving_image_digest}|${var.model_artifact_key}"), 0, 10) : null
 
+  # The endpoint configuration also changes when the hosting mode changes.
+  endpoint_config_id = local.endpoint_enabled ? substr(sha1("${var.serving_image_digest}|${var.model_artifact_key}|${coalesce(var.endpoint_instance_type, "serverless")}"), 0, 10) : null
+
   capture_log_group = "/aws/sagemaker/Endpoints/${local.endpoint_name}"
   metric_namespace  = "CreditRisk/Endpoint"
 }
