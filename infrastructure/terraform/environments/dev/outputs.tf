@@ -47,3 +47,23 @@ output "alert_topic_arns" {
   description = "Tópicos SNS crítico y de aviso."
   value       = { for key, topic in aws_sns_topic.alerts : key => topic.arn }
 }
+
+output "training_repository_url" {
+  description = "URL del repositorio ECR de la imagen de entrenamiento (ADR-0010)."
+  value       = aws_ecr_repository.training.repository_url
+}
+
+output "sagemaker_training_role_arn" {
+  description = "ARN del rol de ejecución de los training jobs."
+  value       = aws_iam_role.sagemaker_training.arn
+}
+
+output "training_dataset_uri" {
+  description = "Prefijo S3 donde se sube modeling_dataset.parquet para los training jobs."
+  value       = "s3://${aws_s3_bucket.data_lake.id}/${local.training_dataset_prefix}/modeling/"
+}
+
+output "mlflow_app_arn" {
+  description = "ARN de la MLflow App; usarlo como MLFLOW_TRACKING_URI. null si mlflow_app_enabled es false."
+  value       = var.mlflow_app_enabled ? aws_sagemaker_mlflow_app.this[0].arn : null
+}

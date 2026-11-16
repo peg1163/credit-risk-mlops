@@ -18,10 +18,10 @@ resource "aws_ecr_repository" "serving" {
   }
 }
 
-resource "aws_ecr_lifecycle_policy" "serving" {
-  repository = aws_ecr_repository.serving.name
-
-  policy = jsonencode({
+# Shared by every SageMaker image repository (ADR-0009): untagged layers, dev-*
+# test builds and the newest v* releases each have their own rule.
+locals {
+  ecr_lifecycle_policy = jsonencode({
     rules = [
       {
         rulePriority = 1
@@ -59,4 +59,9 @@ resource "aws_ecr_lifecycle_policy" "serving" {
       },
     ]
   })
+}
+
+resource "aws_ecr_lifecycle_policy" "serving" {
+  repository = aws_ecr_repository.serving.name
+  policy     = local.ecr_lifecycle_policy
 }

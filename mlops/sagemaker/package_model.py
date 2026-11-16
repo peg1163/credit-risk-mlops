@@ -20,13 +20,14 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def package_model(model_path: Path, output_path: Path) -> dict:
-    bundle = joblib.load(model_path)
-    required = {"model", "features", "threshold", "dataset_id", "feature_pipeline_version"}
-    if not required.issubset(bundle):
-        raise ValueError(f"Model bundle lacks {sorted(required - bundle.keys())}")
-    manifest = {
-        "model_version": "0.1.0",
+REQUIRED = {"model", "features", "threshold", "dataset_id", "feature_pipeline_version"}
+
+
+def model_manifest(bundle: dict, model_path: Path, model_version: str = "0.1.0") -> dict:
+    if not REQUIRED.issubset(bundle):
+        raise ValueError(f"Model bundle lacks {sorted(REQUIRED - bundle.keys())}")
+    return {
+        "model_version": model_version,
         "model_file": "champion.joblib",
         "model_sha256": sha256(model_path),
         "dataset_id": bundle["dataset_id"],
@@ -34,6 +35,19 @@ def package_model(model_path: Path, output_path: Path) -> dict:
         "features": bundle["features"],
         "threshold": float(bundle["threshold"]),
     }
+
+
+def write_model_dir(bundle: dict, directory: Path, model_version: str, extra: dict | None = None) -> dict:
+    """Same layout as model.tar.gz; a SageMaker training job tars /opt/ml/model itself."""
+    directory.mkdir(parents=True, exist_ok=True)
+    joblib.dump(bundle, directory / "champion.joblib")
+    manifest = {**model_manifest(bundle, directory / "champion.joblib", model_version), **(extra or {})}
+    (directory / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    return manifest
+
+
+def package_model(model_path: Path, output_path: Path) -> dict:
+    manifest = model_manifest(joblib.load(model_path), model_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     encoded = (json.dumps(manifest, indent=2) + "\n").encode()
     with tarfile.open(output_path, "w:gz") as archive:
